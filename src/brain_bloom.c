@@ -3,96 +3,131 @@
  * License.....: MIT
  */
 
+#include "common.h"
+#include "types.h"
+#include "brain.h"
+#include "brain_server.h"
+#include "brain_utils.h"
 #include "brain_bloom.h"
+#include "thread.h"
 #include "memory.h"
+#include "shared.h"
 
-void brain_bloom_init (brain_bloom_filter_t *bloom, size_t size, int num_hashes)
-{
-  bloom->size = size;
-  bloom->num_hashes = num_hashes;
-  bloom->bits = (uint8_t *) hccalloc ((size + 7) / 8, sizeof(uint8_t)); // Size in bytes rounded up
-}
+// Configuration for bloom filter
+#define BLOOM_FILTER_SIZE (1024 * 1024 * 8)  // 8MB of bits
+#define BLOOM_FILTER_HASHES 7                 // Number of hash functions
 
-void brain_bloom_free (brain_bloom_filter_t *bloom)
+// Extend brain_server_db_hash_t to include bloom filter
+typedef struct brain_server_db_hash_extended_t
 {
-  if (bloom->bits)
+  brain_server_db_hash_t base;
+  brain_bloom_filter_t bloom;
+  bool bloom_initialized;
+} brain_server_db_hash_extended_t;
+
+static void ensure_bloom_initialized(brain_server_db_hash_extended_t *db)
+{
+  if (!db->bloom_initialized)
   {
-    hcfree (bloom->bits);
-    bloom->bits = NULL;
-  }
-}
+    brain_bloom_init(&db->bloom, BLOOM_FILTER_SIZE, BLOOM_FILTER_HASHES);
 
-uint64_t brain_bloom_hash (const uint32_t *hash, int index)
-{
-  return XXH64 (hash, BRAIN_HASH_SIZE, index * 31337);
-}
-
-void brain_bloom_add (brain_bloom_filter_t *bloom, const uint32_t *hash)
-{
-  for (int i = 0; i < bloom->num_hashes; i++)
-  {
-    uint64_t hash_val = brain_bloom_hash (hash, i) % bloom->size;
-    bloom->bits[hash_val / 8] |= (1 << (hash_val % 8));
-  }
-}
-
-bool brain_bloom_check (brain_bloom_filter_t *bloom, const uint32_t *hash)
-{
-  for (int i = 0; i < bloom->num_hashes; i++)
-  {
-    uint64_t hash_val = brain_bloom_hash (hash, i) % bloom->size;
-    if (!(bloom->bits[hash_val / 8] & (1 << (hash_val % 8))))
+    // Populate bloom filter with existing hashes
+    for (i64 i = 0; i < db->base.long_cnt; i++)
     {
-      return false; // Definitely not in set
+      brain_bloom_add(&db->bloom, db->base.long_buf[i].hash);
+    }
+
+    db->bloom_initialized = true;
+  }
+}
+
+// Modified search implementations using bloom filter
+i64 brain_server_find_hash_long(const u32 *search, const brain_server_hash_long_t *buf, const i64 cnt)
+{
+  brain_server_db_hash_extended_t *db = (brain_server_db_hash_extended_t *)buf;
+
+  ensure_bloom_initialized(db);
+
+  // Quick check with bloom filter
+  if (!brain_bloom_check(&db->bloom, search))
+  {
+    return -1; // Definitely not present
+  }
+
+  // Possible match, do binary search to confirm
+  i64 l = 0;
+  i64 r = cnt - 1;
+
+  while (l <= r)
+  {
+    const i64 m = (l + r) >> 1;
+
+    const int rc = brain_server_sort_hash(search, buf[m].hash);
+
+    if (rc == 0) return m;
+
+    if (rc > 0)
+    {
+      l = m + 1;
+    }
+    else
+    {
+      r = m - 1;
     }
   }
-  return true; // Possibly in set
+
+  return -1; // Not found
 }
 
-bool brain_bloom_save (brain_bloom_filter_t *bloom, const char *filename)
+i64 brain_server_find_hash_short(const u32 *search, const brain_server_hash_short_t *buf, const i64 cnt)
 {
-  FILE *fp = fopen(filename, "wb");
-  if (!fp) return false;
+  // Short-term storage doesn't use bloom filter since it's temporary
+  if (cnt == 0) return -1;
 
-  // Write metadata
-  if (fwrite(&bloom->size, sizeof(size_t), 1, fp) != 1) goto error;
-  if (fwrite(&bloom->num_hashes, sizeof(int), 1, fp) != 1) goto error;
+  i64 l = 0;
+  i64 r = cnt - 1;
 
-  // Write bit array
-  size_t bytes = (bloom->size + 7) / 8;
-  if (fwrite(bloom->bits, sizeof(uint8_t), bytes, fp) != bytes) goto error;
+  while (l <= r)
+  {
+    const i64 m = (l + r) >> 1;
 
-  fclose(fp);
-  return true;
+    const int rc = brain_server_sort_hash(search, buf[m].hash);
 
-error:
-  fclose(fp);
-  return false;
+    if (rc == 0) return m;
+
+    if (rc > 0)
+    {
+      l = m + 1;
+    }
+    else
+    {
+      r = m - 1;
+    }
+  }
+
+  return -1;
 }
 
-bool brain_bloom_load (brain_bloom_filter_t *bloom, const char *filename)
+// Modified initialization to setup bloom filter
+void brain_server_db_hash_init_extended(brain_server_db_hash_extended_t *brain_server_db_hash, const u32 brain_session)
 {
-  FILE *fp = fopen(filename, "rb");
-  if (!fp) return false;
+  brain_server_db_hash_init(&brain_server_db_hash->base, brain_session);
+  brain_server_db_hash->bloom_initialized = false;
+}
 
-  // Read metadata
-  size_t size;
-  int num_hashes;
-  if (fread(&size, sizeof(size_t), 1, fp) != 1) goto error;
-  if (fread(&num_hashes, sizeof(int), 1, fp) != 1) goto error;
+// Modified free to cleanup bloom filter
+void brain_server_db_hash_free_extended(brain_server_db_hash_extended_t *brain_server_db_hash)
+{
+  if (brain_server_db_hash->bloom_initialized)
+  {
+    brain_bloom_free(&brain_server_db_hash->bloom);
+  }
+  brain_server_db_hash_free(&brain_server_db_hash->base);
+}
 
-  // Initialize bloom filter
-  brain_bloom_init(bloom, size, num_hashes);
-
-  // Read bit array
-  size_t bytes = (size + 7) / 8;
-  if (fread(bloom->bits, sizeof(u8), bytes, fp) != bytes) goto error;
-
-  fclose(fp);
-  return true;
-
-error:
-  fclose(fp);
-  brain_bloom_free(bloom);
-  return false;
+// Helper function to update bloom filter when adding new hashes
+void brain_server_db_hash_update_bloom(brain_server_db_hash_extended_t *db, const u32 *hash)
+{
+  ensure_bloom_initialized(db);
+  brain_bloom_add(&db->bloom, hash);
 }

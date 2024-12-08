@@ -3,6 +3,9 @@
         ".fantomasignore": "ignore",
         "MLTable": "yaml",
         "brain_client.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "brain_server.h": "c",
+        "brain_bloom.h": "c",
+        "brain_types.h": "c"
     }
 }

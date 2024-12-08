@@ -40,7 +40,7 @@
 
 #include "xxhash.h"
 #include "types.h"
-
+#include "brain_types.h"
 static const int BRAIN_CLIENT_CONNECT_TIMEOUT     = 5;
 static const int BRAIN_SERVER_TIMER               = 5 * 60;
 static const int BRAIN_SERVER_SESSIONS_MAX        = 64;
@@ -48,7 +48,6 @@ static const int BRAIN_SERVER_ATTACKS_MAX         = 64 * 1024;
 static const int BRAIN_SERVER_CLIENTS_MAX         = 256;
 static const int BRAIN_SERVER_REALLOC_HASH_SIZE   = 1024 * 1024;
 static const int BRAIN_SERVER_REALLOC_ATTACK_SIZE = 1024;
-static const int BRAIN_HASH_SIZE                  = 2 * sizeof (u32);
 static const int BRAIN_LINK_VERSION_CUR           = 1;
 static const int BRAIN_LINK_VERSION_MIN           = 1;
 static const int BRAIN_LINK_CHUNK_SIZE            = 4 * 1024;
@@ -128,23 +127,6 @@ typedef struct brain_server_db_attack
 
 } brain_server_db_attack_t;
 
-typedef struct brain_server_db_hash
-{
-  u32 brain_session;
-
-  brain_server_hash_long_t *long_buf;
-
-  i64 long_alloc;
-  i64 long_cnt;
-
-  int hb;
-
-  hc_thread_mutex_t mux_hr;
-  hc_thread_mutex_t mux_hg;
-
-  bool write_hashes;
-
-} brain_server_db_hash_t;
 
 typedef struct brain_server_db_short
 {
@@ -153,22 +135,6 @@ typedef struct brain_server_db_short
   i64 short_cnt;
 
 } brain_server_db_short_t;
-
-typedef struct brain_server_dbs
-{
-  // required for cyclic dump
-
-  hc_thread_mutex_t mux_dbs;
-
-  brain_server_db_hash_t   *hash_buf;
-  brain_server_db_attack_t *attack_buf;
-
-  int hash_cnt;
-  int attack_cnt;
-
-  int *client_slots;
-
-} brain_server_dbs_t;
 
 typedef struct brain_server_dumper_options
 {
@@ -228,10 +194,7 @@ int   brain_server_get_client_idx       (brain_server_dbs_t *brain_server_dbs);
 u64   brain_server_highest_attack       (const brain_server_db_attack_t *buf);
 u64   brain_server_highest_attack_long  (const brain_server_attack_long_t  *buf, const i64 cnt, const u64 start);
 u64   brain_server_highest_attack_short (const brain_server_attack_short_t *buf, const i64 cnt, const u64 start);
-u64   brain_server_find_attack_long     (const brain_server_attack_long_t  *buf, const i64 cnt, const u64 offset, const u64 length);
-u64   brain_server_find_attack_short    (const brain_server_attack_short_t *buf, const i64 cnt, const u64 offset, const u64 length);
-i64   brain_server_find_hash_long       (const u32 *search, const brain_server_hash_long_t  *buf, const i64 cnt);
-i64   brain_server_find_hash_short      (const u32 *search, const brain_server_hash_short_t *buf, const i64 cnt);
+
 int   brain_server_sort_db_hash         (const void *v1, const void *v2);
 int   brain_server_sort_db_attack       (const void *v1, const void *v2);
 int   brain_server_sort_attack_long     (const void *v1, const void *v2);

@@ -17,9 +17,7 @@ int brain_ctx_init (hashcat_ctx_t *hashcat_ctx)
 
   #ifdef WITH_BRAIN
   brain_ctx->support = true;
-  #else
-  brain_ctx->support = false;
-  #endif
+
 
   if (brain_ctx->support == false) return 0;
 
@@ -32,6 +30,9 @@ int brain_ctx_init (hashcat_ctx_t *hashcat_ctx)
   {
     brain_ctx->enabled = true;
   }
+  #else
+  brain_ctx->support = false;
+  #endif
 
   return 0;
 }

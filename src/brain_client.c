@@ -3,9 +3,13 @@
  * License.....: MIT
  */
 
+#ifdef WITH_BRAIN
+
 #include "common.h"
 #include "types.h"
 #include "brain.h"
+#include "brain_client.h"
+#include "brain_utils.h"
 
 bool brain_client_connect (hc_device_param_t *device_param, const status_ctx_t *status_ctx, const char *host, const int port, const char *password, u32 brain_session, u32 brain_attack, i64 passwords_max, u64 *highest)
 {
@@ -248,3 +252,4 @@ void brain_client_generate_hash (u64 *hash, const char *line_buf, const size_t l
   const u64 seed = 0;
   hash[0] = XXH64 (line_buf, line_len, seed);
 }
+#endif // WITH_BRAIN

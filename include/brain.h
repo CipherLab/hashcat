@@ -39,6 +39,7 @@
 #endif
 
 #include "xxhash.h"
+#include "types.h"
 
 static const int BRAIN_CLIENT_CONNECT_TIMEOUT     = 5;
 static const int BRAIN_SERVER_TIMER               = 5 * 60;
@@ -240,8 +241,6 @@ int   brain_server_sort_hash_long       (const void *v1, const void *v2);
 int   brain_server_sort_hash_short      (const void *v1, const void *v2);
 int   brain_server_sort_hash_unique     (const void *v1, const void *v2);
 void  brain_server_handle_signal        (int signo);
-HC_API_CALL
-void *brain_server_handle_client        (void *p);
 HC_API_CALL
 void *brain_server_handle_dumps         (void *p);
 void  brain_server_db_hash_init         (brain_server_db_hash_t *brain_server_db_hash, const u32 brain_session);

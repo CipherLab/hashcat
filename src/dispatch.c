@@ -19,6 +19,7 @@
 
 #ifdef WITH_BRAIN
 #include "brain.h"
+#include "brain_client.h"
 #endif
 
 static u64 get_highest_words_done (const hashcat_ctx_t *hashcat_ctx)

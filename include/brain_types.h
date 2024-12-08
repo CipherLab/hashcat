@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "xxhash.h"
+#include "types.h"
+#include "brain.h"
 
 #define BRAIN_HASH_SIZE 8      // Size in bytes of xxHash output used
 #define BRAIN_BLOOM_SIZE 1024  // Size of bloom filter in bits
@@ -38,7 +40,7 @@ typedef struct {
 
 typedef struct {
   brain_server_db_hash_t *hash_buf;  // Array of hash databases
-  brain_server_db_attack_t *attack_buf; // Array of attack databases  
+  brain_server_db_attack_t *attack_buf; // Array of attack databases
   int *client_slots;                 // Array of client slot states
   i64 hash_cnt;                      // Count of hash databases
   i64 attack_cnt;                    // Count of attack databases

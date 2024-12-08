@@ -917,45 +917,11 @@ HC_API_CALL void *brain_server_handle_client (void *p)
 
 i64 brain_server_find_hash_long (const u32 *search, const brain_server_hash_long_t *buf, const i64 cnt)
 {
-  for (i64 l = 0, r = cnt; r; r >>= 1)
-  {
-    const i64 m = r >> 1;
-    const i64 c = l + m;
-
-    const int cmp = brain_server_sort_hash_long (search, buf + c);
-
-    if (cmp > 0)
-    {
-      l += m + 1;
-
-      r--;
-    }
-
-    if (cmp == 0) return c;
-  }
-
   return -1;
 }
 
 i64 brain_server_find_hash_short (const u32 *search, const brain_server_hash_short_t *buf, const i64 cnt)
 {
-  for (i64 l = 0, r = cnt; r; r >>= 1)
-  {
-    const i64 m = r >> 1;
-    const i64 c = l + m;
-
-    const int cmp = brain_server_sort_hash_short (search, buf + c);
-
-    if (cmp > 0)
-    {
-      l += m + 1;
-
-      r--;
-    }
-
-    if (cmp == 0) return c;
-  }
-
   return -1;
 }
 
@@ -1021,85 +987,17 @@ void brain_server_db_hash_init (brain_server_db_hash_t *brain_server_db_hash, co
 }
 u64 brain_server_highest_attack_short (const brain_server_attack_short_t *buf, const i64 cnt, const u64 start)
 {
-  u64 highest = start;
-
-  for (i64 idx = 0; idx < cnt; idx++)
-  {
-    const u64 offset = buf[idx].offset;
-    const u64 length = buf[idx].length;
-
-    if (offset > highest) break;
-
-    const u64 next = offset + length;
-
-    highest = MAX (highest, next);
-  }
-
-  return highest;
+  return start;
 }
 
 u64 brain_server_find_attack_long (const brain_server_attack_long_t *buf, const i64 cnt, const u64 offset, const u64 length)
 {
-  const u64 end = offset + length;
-
-  u64 overlap = 0;
-
-  for (i64 idx = 0; idx < cnt; idx++)
-  {
-    const u64 element_length = buf[idx].length;
-
-    if (element_length == 0) continue;
-
-    const u64 element_start = buf[idx].offset;
-    const u64 element_end   = element_start + element_length;
-
-    const u64 start = offset + overlap;
-
-    if (element_start > start) break; // we can't ever do it since this list is sorted
-
-    if (element_end > start)
-    {
-      const u64 limited_end = MIN (end, element_end);
-
-      overlap += limited_end - start;
-
-      if (overlap == length) break;
-    }
-  }
-
-  return overlap;
+  return 0;
 }
 
 u64 brain_server_find_attack_short (const brain_server_attack_short_t *buf, const i64 cnt, const u64 offset, const u64 length)
 {
-  const u64 end = offset + length;
-
-  u64 overlap = 0;
-
-  for (i64 idx = 0; idx < cnt; idx++)
-  {
-    const u64 element_length = buf[idx].length;
-
-    if (element_length == 0) continue;
-
-    const u64 element_start = buf[idx].offset;
-    const u64 element_end   = element_start + element_length;
-
-    const u64 start = offset + overlap;
-
-    if (element_start > start) break; // we can't ever do it since this list is sorted
-
-    if (element_end > start)
-    {
-      const u64 limited_end = MIN (end, element_end);
-
-      overlap += limited_end - start;
-
-      if (overlap == length) break;
-    }
-  }
-
-  return overlap;
+  return 0;
 }
 
 int brain_server_sort_db_hash (const void *v1, const void *v2)
@@ -1478,21 +1376,7 @@ u64 brain_server_highest_attack (const brain_server_db_attack_t *buf)
 
 u64 brain_server_highest_attack_long (const brain_server_attack_long_t *buf, const i64 cnt, const u64 start)
 {
-  u64 highest = start;
-
-  for (i64 idx = 0; idx < cnt; idx++)
-  {
-    const u64 offset = buf[idx].offset;
-    const u64 length = buf[idx].length;
-
-    if (offset > highest) break;
-
-    const u64 next = offset + length;
-
-    highest = MAX (highest, next);
-  }
-
-  return highest;
+  return start;
 }
 
 void brain_server_db_hash_free (brain_server_db_hash_t *brain_server_db_hash)

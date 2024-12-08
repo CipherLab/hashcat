@@ -8,6 +8,7 @@
 
 #include "types.h"
 #include "brain.h"
+#include "brain_bloom.h"
 
 
 int brain_server_db_get_client_idx (brain_server_dbs_t *brain_server_dbs);

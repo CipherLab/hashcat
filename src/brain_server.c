@@ -506,6 +506,11 @@ HC_API_CALL void *brain_server_handle_client (void *p)
             {
               brain_server_db_hash->long_buf[idx].hash[0] = brain_server_db_short->short_buf[idx].hash[0];
               brain_server_db_hash->long_buf[idx].hash[1] = brain_server_db_short->short_buf[idx].hash[1];
+                
+              // Add to Bloom filter
+              if (brain_server_db_hash->bloom_initialized) {
+                brain_bloom_add(&brain_server_db_hash->bloom, brain_server_db_short->short_buf[idx].hash);
+              }
             }
 
             brain_server_db_hash->long_cnt = brain_server_db_short->short_cnt;
@@ -709,7 +714,17 @@ HC_API_CALL void *brain_server_handle_client (void *p)
         {
           brain_server_hash_unique_t *cur = &temp_buf[temp_idx];
 
-          const i64 r = brain_server_find_hash_long (cur->hash, brain_server_db_hash->long_buf, brain_server_db_hash->long_cnt);
+          // First check Bloom filter
+          bool maybe_exists = true;
+          if (brain_server_db_hash->bloom_initialized) {
+            maybe_exists = brain_bloom_check(&brain_server_db_hash->bloom, cur->hash);
+          }
+
+          // Only do expensive lookup if Bloom filter indicates possible match
+          i64 r = -1;
+          if (maybe_exists) {
+            r = brain_server_find_hash_long(cur->hash, brain_server_db_hash->long_buf, brain_server_db_hash->long_cnt);
+          }
 
           if (r != -1)
           {
@@ -975,6 +990,9 @@ void brain_server_db_hash_init (brain_server_db_hash_t *brain_server_db_hash, co
   brain_server_db_hash->long_buf     = NULL;
   brain_server_db_hash->long_alloc   = 0;
   brain_server_db_hash->write_hashes = false;
+
+  // Initialize Bloom filter
+  brain_server_db_hash->bloom_initialized = brain_bloom_init(&brain_server_db_hash->bloom);
 
   hc_thread_mutex_init (brain_server_db_hash->mux_hr);
   hc_thread_mutex_init (brain_server_db_hash->mux_hg);
@@ -1369,6 +1387,10 @@ void brain_server_db_hash_free (brain_server_db_hash_t *brain_server_db_hash)
   hc_thread_mutex_delete (brain_server_db_hash->mux_hg);
   hc_thread_mutex_delete (brain_server_db_hash->mux_hr);
 
+  if (brain_server_db_hash->bloom_initialized) {
+    brain_bloom_free(&brain_server_db_hash->bloom);
+  }
+
   hcfree (brain_server_db_hash->long_buf);
 
   brain_server_db_hash->hb            = 0;
@@ -1377,6 +1399,7 @@ void brain_server_db_hash_free (brain_server_db_hash_t *brain_server_db_hash)
   brain_server_db_hash->long_alloc    = 0;
   brain_server_db_hash->write_hashes  = false;
   brain_server_db_hash->brain_session = 0;
+  brain_server_db_hash->bloom_initialized = false;
 }
 
 bool brain_server_write_hash_dump (brain_server_db_hash_t *brain_server_db_hash, const char *file)

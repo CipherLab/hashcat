@@ -39,6 +39,7 @@ typedef struct brain_server_db_hash {
   hc_thread_mutex_t *mux_hr;           // Read mutex
   hc_thread_mutex_t *mux_hg;           // Global mutex
   int hb;                              // Hash buffer counter
+  bool bloom_initialized;              // Flag to indicate if Bloom filter is initialized
 } brain_server_db_hash_t;
 
 typedef struct brain_server_dbs {

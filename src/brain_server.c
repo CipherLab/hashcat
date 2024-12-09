@@ -506,7 +506,7 @@ HC_API_CALL void *brain_server_handle_client (void *p)
             {
               brain_server_db_hash->long_buf[idx].hash[0] = brain_server_db_short->short_buf[idx].hash[0];
               brain_server_db_hash->long_buf[idx].hash[1] = brain_server_db_short->short_buf[idx].hash[1];
-                
+
               // Add to Bloom filter
               if (brain_server_db_hash->bloom_initialized) {
                 brain_bloom_add(&brain_server_db_hash->bloom, brain_server_db_short->short_buf[idx].hash);
@@ -992,7 +992,7 @@ void brain_server_db_hash_init (brain_server_db_hash_t *brain_server_db_hash, co
   brain_server_db_hash->write_hashes = false;
 
   // Initialize Bloom filter
-  brain_server_db_hash->bloom_initialized = brain_bloom_init(&brain_server_db_hash->bloom);
+  brain_server_db_hash->bloom_initialized = brain_bloom_init(&brain_server_db_hash->bloom, BRAIN_BLOOM_SIZE, BRAIN_BLOOM_HASHES);
 
   hc_thread_mutex_init (brain_server_db_hash->mux_hr);
   hc_thread_mutex_init (brain_server_db_hash->mux_hg);
